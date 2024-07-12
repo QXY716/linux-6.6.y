@@ -77,42 +77,38 @@ static int fbtft_request_one_gpio(struct fbtft_par *par,
                   struct gpio_desc **gpiop)
 {
 	struct device *dev = par->info->device;
-	struct device_node *node = dev->of_node;
 	struct gpio_desc *gpiod;
-	int gpio, ret = 0;
+	int ret = 0;
 	enum gpiod_flags flags;
 
-	if (of_find_property(node, name, NULL)) {
-		gpio = of_get_named_gpio(node, name, index);
-		if (gpio == -ENOENT)
-			return 0;
-		if (gpio == -EPROBE_DEFER)
-			return gpio;
-		if (gpio < 0) {
-			dev_err(dev,
-				"failed to get '%s' from DT\n", name);
-			return gpio;
+	gpiod = devm_gpiod_get_index(dev, name, index, GPIOD_ASIS);
+	if (IS_ERR(gpiod)) {
+		ret = PTR_ERR(gpiod); // 将错误指针转换为错误码并存储在 ret 中
+		if (ret == -ENOENT) {
+			return 0; // 属性不存在，返回 0
 		}
-
-		// 检查 GPIO 是否为低电平有效
-		gpiod = devm_gpiod_get_index(dev, name, index, GPIOD_ASIS);
-		flags = (gpiod_is_active_low(gpiod)) ? GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH;
-
-		// 设置 GPIO 初始状态
-		ret = devm_gpio_request_one(dev, gpio, flags, dev->driver->name);
-		if (ret) {
-			dev_err(dev,
-				"gpio_request_one('%s'=%d) failed with %d\n",
-				name, gpio, ret);
-			return ret;
+		if (ret == -EPROBE_DEFER) {
+			return ret; // 资源暂时不可用，返回错误码
 		}
-
-		// 保存获取的 GPIO 描述符
-		*gpiop = gpiod;
-
-		// 打印调试信息
-		fbtft_par_dbg(DEBUG_REQUEST_GPIOS, par, "%s: '%s' = GPIO%d\n", __func__, name, gpio);
+		dev_err(dev, "failed to get '%s-gpios' from DT\n", name);
+		return ret; // 其他错误，返回错误码
 	}
+
+	// 检查 GPIO 是否为低电平有效
+	flags = (gpiod_is_active_low(gpiod)) ? GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH;
+
+	// 设置 GPIO 初始状态
+	ret = devm_gpio_request_one(dev, desc_to_gpio(gpiod), flags, dev->driver->name);
+	if (ret) {
+		dev_err(dev, "gpio_request_one('%s-gpios'=%d) failed with %d\n", name, desc_to_gpio(gpiod), ret);
+		return ret;
+	}
+
+	// 保存获取的 GPIO 描述符
+	*gpiop = gpiod;
+
+	// 打印调试信息
+	fbtft_par_dbg(DEBUG_REQUEST_GPIOS, par, "%s: '%s-gpios' = GPIO%d\n", __func__, name, desc_to_gpio(gpiod));
 
 	return ret;
 }
@@ -122,34 +118,34 @@ static int fbtft_request_gpios(struct fbtft_par *par)
 	int i;
 	int ret;
 
-	ret = fbtft_request_one_gpio(par, "reset-gpios", 0, &par->gpio.reset);
+	ret = fbtft_request_one_gpio(par, "reset", 0, &par->gpio.reset);
 	if (ret)
 		return ret;
-	ret = fbtft_request_one_gpio(par, "dc-gpios", 0, &par->gpio.dc);
+	ret = fbtft_request_one_gpio(par, "dc", 0, &par->gpio.dc);
 	if (ret)
 		return ret;
-	ret = fbtft_request_one_gpio(par, "rd-gpios", 0, &par->gpio.rd);
+	ret = fbtft_request_one_gpio(par, "rd", 0, &par->gpio.rd);
 	if (ret)
 		return ret;
-	ret = fbtft_request_one_gpio(par, "wr-gpios", 0, &par->gpio.wr);
+	ret = fbtft_request_one_gpio(par, "wr", 0, &par->gpio.wr);
 	if (ret)
 		return ret;
-	ret = fbtft_request_one_gpio(par, "cs-gpios", 0, &par->gpio.cs);
+	ret = fbtft_request_one_gpio(par, "cs", 0, &par->gpio.cs);
 	if (ret)
 		return ret;
-	ret = fbtft_request_one_gpio(par, "latch-gpios", 0, &par->gpio.latch);
+	ret = fbtft_request_one_gpio(par, "latch", 0, &par->gpio.latch);
 	if (ret)
 		return ret;
 	for (i = 0; i < 16; i++) {
-		ret = fbtft_request_one_gpio(par, "db-gpios", i,
+		ret = fbtft_request_one_gpio(par, "db", i,
 					     &par->gpio.db[i]);
 		if (ret)
 			return ret;
-		ret = fbtft_request_one_gpio(par, "led-gpios", i,
+		ret = fbtft_request_one_gpio(par, "led", i,
 					     &par->gpio.led[i]);
 		if (ret)
 			return ret;
-		ret = fbtft_request_one_gpio(par, "aux-gpios", i,
+		ret = fbtft_request_one_gpio(par, "aux", i,
 					     &par->gpio.aux[i]);
 		if (ret)
 			return ret;
