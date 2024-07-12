@@ -10,7 +10,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/err.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
@@ -77,11 +76,11 @@ static int fbtft_request_one_gpio(struct fbtft_par *par,
                   const char *name, int index,
                   struct gpio_desc **gpiop)
 {
-    struct device *dev = par->info->device;
+	struct device *dev = par->info->device;
 	struct device_node *node = dev->of_node;
-    struct gpio_desc *gpiod;
-    int gpio, ret = 0;
-    enum gpiod_flags flags;
+	struct gpio_desc *gpiod;
+	int gpio, ret = 0;
+	enum gpiod_flags flags;
 
 	if (of_find_property(node, name, NULL)) {
 		gpio = of_get_named_gpio(node, name, index);
