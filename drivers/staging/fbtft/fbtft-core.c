@@ -78,39 +78,44 @@ static int fbtft_request_one_gpio(struct fbtft_par *par,
                   struct gpio_desc **gpiop)
 {
     struct device *dev = par->info->device;
+	struct device_node *node = dev->of_node;
     struct gpio_desc *gpiod;
-    int ret = 0;
+    int gpio, ret = 0;
     enum gpiod_flags flags;
 
-	// 使用 devm_gpiod_get 获取 GPIO 描述符
-	gpiod = devm_gpiod_get_index(dev, name, index, GPIOD_ASIS);
-	if (IS_ERR(gpiod)) {
-		if (PTR_ERR(gpiod) == -ENOENT)
+	if (of_find_property(node, name, NULL)) {
+		gpio = of_get_named_gpio(node, name, index);
+		if (gpio == -ENOENT)
 			return 0;
-		if (PTR_ERR(gpiod) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-		dev_err(dev, "failed to get '%s' from DT\n", name);
-		return PTR_ERR(gpiod);
+		if (gpio == -EPROBE_DEFER)
+			return gpio;
+		if (gpio < 0) {
+			dev_err(dev,
+				"failed to get '%s' from DT\n", name);
+			return gpio;
+		}
+
+		// 检查 GPIO 是否为低电平有效
+		gpiod = devm_gpiod_get_index(dev, name, index, GPIOD_ASIS);
+		flags = (gpiod_is_active_low(gpiod)) ? GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH;
+
+		// 设置 GPIO 初始状态
+		ret = devm_gpio_request_one(dev, gpio, flags, dev->driver->name);
+		if (ret) {
+			dev_err(dev,
+				"gpio_request_one('%s'=%d) failed with %d\n",
+				name, gpio, ret);
+			return ret;
+		}
+
+		// 保存获取的 GPIO 描述符
+		*gpiop = gpiod;
+
+		// 打印调试信息
+		fbtft_par_dbg(DEBUG_REQUEST_GPIOS, par, "%s: '%s' = GPIO%d\n", __func__, name, gpio);
 	}
 
-	// 检查 GPIO 是否为低电平有效
-    flags = (gpiod_is_active_low(gpiod)) ? GPIOD_OUT_LOW : GPIOD_OUT_HIGH;
-
-	// 设置 GPIO 初始状态
-	ret = gpiod_direction_output(gpiod, flags);
-	if (ret) {
-		dev_err(dev, "Failed to set GPIO direction: %d\n", ret);
-		return ret;
-	}
-
-	// 保存获取的 GPIO 描述符
-	*gpiop = gpiod;
-
-	// 打印调试信息
-	fbtft_par_dbg(DEBUG_REQUEST_GPIOS, par, "%s: '%s' = GPIO%d\n",
-					__func__, name, desc_to_gpio(gpiod));
-
-    return ret;
+	return ret;
 }
 
 static int fbtft_request_gpios(struct fbtft_par *par)
