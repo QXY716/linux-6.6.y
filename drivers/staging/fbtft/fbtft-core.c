@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
+#include <linux/err.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
@@ -78,7 +79,8 @@ static int fbtft_request_one_gpio(struct fbtft_par *par,
 {
 	struct device *dev = par->info->device;
 	struct gpio_desc *gpiod;
-	int flags, ret = 0;
+	int ret = 0;
+	enum gpiod_flags flags;
 
 	gpiod = devm_gpiod_get_index(dev, name, index, GPIOD_ASIS);
 	if (IS_ERR(gpiod)) {
@@ -94,10 +96,10 @@ static int fbtft_request_one_gpio(struct fbtft_par *par,
 	}
 
 	// 检查 GPIO 是否为低电平有效
-	flags = (gpiod_is_active_low(gpiod)) ? 0 : 1;
+	flags = (gpiod_is_active_low(gpiod)) ? GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH;
 
 	// 设置 GPIO 初始状态
-	ret = gpiod_direction_output(gpiod, flags);
+	ret = devm_gpio_request_one(dev, desc_to_gpio(gpiod), flags, dev->driver->name);
 	if (ret) {
 		dev_err(dev, "gpio_request_one('%s-gpios'=%d) failed with %d\n", name, desc_to_gpio(gpiod), ret);
 		return ret;
