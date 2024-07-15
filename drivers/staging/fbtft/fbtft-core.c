@@ -25,6 +25,7 @@
 #include <linux/property.h>
 #include <linux/spinlock.h>
 #include <linux/gpio.h>
+#include <linux/of.h>
 #include <linux/of_gpio.h>
 
 #include <video/mipi_display.h>
@@ -79,10 +80,10 @@ static int fbtft_request_one_gpio(struct fbtft_par *par,
     struct device *dev = par->info->device;
     struct device_node *node = dev->of_node;
     int gpio, flags, ret = 0;
-    enum of_gpio_flags of_flags;
+    u32 of_flags = 0;
 
     if (of_find_property(node, name, NULL)) {
-        gpio = of_get_named_gpio_flags(node, name, index, &of_flags);
+        gpio = of_get_named_gpio(node, name, index);
         if (gpio == -ENOENT)
             return 0;
         if (gpio == -EPROBE_DEFER)
@@ -92,7 +93,8 @@ static int fbtft_request_one_gpio(struct fbtft_par *par,
                 "failed to get '%s' from DT\n", name);
             return gpio;
         }
-        flags = (of_flags & OF_GPIO_ACTIVE_LOW) ? GPIOF_OUT_INIT_LOW :
+		of_property_read_u32_index(node, name, 2, &of_flags);
+        flags = (of_flags & GPIO_ACTIVE_LOW) ? GPIOF_OUT_INIT_LOW :
                             GPIOF_OUT_INIT_HIGH;
         ret = devm_gpio_request_one(dev, gpio, flags,
                         dev->driver->name);
