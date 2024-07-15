@@ -77,40 +77,40 @@ static int fbtft_request_one_gpio(struct fbtft_par *par,
                   const char *name, int index,
                   struct gpio_desc **gpiop)
 {
-    struct device *dev = par->info->device;
-    struct device_node *node = dev->of_node;
-    int gpio, flags, ret = 0;
-    u32 of_flags = 0;
+	struct device *dev = par->info->device;
+	struct device_node *node = dev->of_node;
+	int gpio, flags, ret = 0;
+	u32 of_flags = 0;
 
-    if (of_find_property(node, name, NULL)) {
-        gpio = of_get_named_gpio(node, name, index);
-        if (gpio == -ENOENT)
-            return 0;
-        if (gpio == -EPROBE_DEFER)
-            return gpio;
-        if (gpio < 0) {
-            dev_err(dev,
-                "failed to get '%s' from DT\n", name);
-            return gpio;
-        }
+	if (of_find_property(node, name, NULL)) {
+		gpio = of_get_named_gpio(node, name, index);
+		if (gpio == -ENOENT)
+			return 0;
+		if (gpio == -EPROBE_DEFER)
+			return gpio;
+		if (gpio < 0) {
+			dev_err(dev,
+				"failed to get '%s' from DT\n", name);
+			return gpio;
+		}
 		of_property_read_u32_index(node, name, 2, &of_flags);
-        flags = (of_flags & GPIO_ACTIVE_LOW) ? GPIOF_OUT_INIT_LOW :
-                            GPIOF_OUT_INIT_HIGH;
-        ret = devm_gpio_request_one(dev, gpio, flags,
-                        dev->driver->name);
-        if (ret) {
-            dev_err(dev,
-                "gpio_request_one('%s'=%d) failed with %d\n",
-                name, gpio, ret);
-            return ret;
-        }
+		flags = (of_flags & GPIO_ACTIVE_LOW) ? GPIOF_OUT_INIT_LOW :
+							GPIOF_OUT_INIT_HIGH;
+		ret = devm_gpio_request_one(dev, gpio, flags,
+						dev->driver->name);
+		if (ret) {
+			dev_err(dev,
+				"gpio_request_one('%s'=%d) failed with %d\n",
+				name, gpio, ret);
+			return ret;
+		}
 
-        *gpiop = gpio_to_desc(gpio);
-        fbtft_par_dbg(DEBUG_REQUEST_GPIOS, par, "%s: '%s' = GPIO%d\n",
-                            __func__, name, gpio);
-    }
+		*gpiop = gpio_to_desc(gpio);
+		fbtft_par_dbg(DEBUG_REQUEST_GPIOS, par, "%s: '%s' = GPIO%d\n",
+							__func__, name, gpio);
+	}
 
-    return ret;
+	return ret;
 }
 
 static int fbtft_request_gpios(struct fbtft_par *par)
