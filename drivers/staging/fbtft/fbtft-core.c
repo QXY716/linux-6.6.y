@@ -79,8 +79,9 @@ static int fbtft_request_one_gpio(struct fbtft_par *par,
 {
 	struct device *dev = par->info->device;
 	struct device_node *node = dev->of_node;
+	struct gpio_desc *gpiod;
 	int gpio, flags, ret = 0;
-	u32 of_flags = 0;
+	char gpiod_name[] = name;
 
 	if (of_find_property(node, name, NULL)) {
 		gpio = of_get_named_gpio(node, name, index);
@@ -93,21 +94,18 @@ static int fbtft_request_one_gpio(struct fbtft_par *par,
 				"failed to get '%s' from DT\n", name);
 			return gpio;
 		}
-		of_property_read_u32_index(node, name, 2, &of_flags);
-		flags = (of_flags & GPIO_ACTIVE_LOW) ? GPIOF_OUT_INIT_LOW :
-							GPIOF_OUT_INIT_HIGH;
-		ret = devm_gpio_request_one(dev, gpio, flags,
-						dev->driver->name);
+
+		gpiod_name[strlen(gpiod_name) - strlen("-gpios")] = '\0';
+		gpiod = devm_gpiod_get_index(dev, gpiod_name, index, GPIOD_ASIS);
+		flags = (gpiod_is_active_low(gpiod)) ? GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH;
+		ret = devm_gpio_request_one(dev, gpio, flags, dev->driver->name);
 		if (ret) {
-			dev_err(dev,
-				"gpio_request_one('%s'=%d) failed with %d\n",
-				name, gpio, ret);
+			dev_err(dev, "gpio_request_one('%s'=%d) failed with %d\n", name, gpio, ret);
 			return ret;
 		}
 
 		*gpiop = gpio_to_desc(gpio);
-		fbtft_par_dbg(DEBUG_REQUEST_GPIOS, par, "%s: '%s' = GPIO%d\n",
-							__func__, name, gpio);
+		fbtft_par_dbg(DEBUG_REQUEST_GPIOS, par, "%s: '%s' = GPIO%d\n", __func__, name, gpio);
 	}
 
 	return ret;
