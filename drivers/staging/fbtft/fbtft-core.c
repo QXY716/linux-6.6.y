@@ -81,7 +81,7 @@ static int fbtft_request_one_gpio(struct fbtft_par *par,
 	struct device_node *node = dev->of_node;
 	struct gpio_desc *gpiod;
 	int gpio, flags, ret = 0;
-	char gpiod_name[] = name;
+	char gpiod_name[20];
 
 	if (of_find_property(node, name, NULL)) {
 		gpio = of_get_named_gpio(node, name, index);
@@ -95,7 +95,8 @@ static int fbtft_request_one_gpio(struct fbtft_par *par,
 			return gpio;
 		}
 
-		gpiod_name[strlen(gpiod_name) - strlen("-gpios")] = '\0';
+		strcpy(gpiod_name, name);
+		gpiod_name[strlen(name) - strlen("-gpios")] = '\0';
 		gpiod = devm_gpiod_get_index(dev, gpiod_name, index, GPIOD_ASIS);
 		flags = (gpiod_is_active_low(gpiod)) ? GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH;
 		ret = devm_gpio_request_one(dev, gpio, flags, dev->driver->name);
